@@ -121,6 +121,12 @@ def betapunkt(df, skredtype='sno', avik=0.2):
     return (beta_helning, beta_vinkel_radianer, beta_vinkel_grader, beta_utlop_x, beta_utlop_y, m_10, poly_10)
 
 def alfa_vinkel(beta_vinkel_grader, skredtype='sno'):
+    '''
+    Input betavinkelen
+
+    output: liste med alfa vinkler og hellinger
+    '''
+
     if skredtype == 'sno':
         standardavik = 2.3
         beta = 0.96
@@ -196,11 +202,16 @@ def skredutlop(df, alfa_helning, p, standardavik):
         liste_alfa = [df.loc[0, 'POLY'], df.loc[0, 'POLY'] - df.loc[len(df)-1, 'M']*alfa_helning[0]]
         q_alfa = np.polyfit(liste_meterverdi, liste_alfa, 1)
         x_0_alfa = np.roots(p - q_alfa)
-        alfa_verdi = int(x_0_alfa.max().round())
+        print('x_0_Alfa', x_0_alfa)
+        
+        alfa_verdi = int(x_0_alfa.max().round()) #alfa meterverdien 
+        alfa_poly = df.loc[alfa_verdi, 'POLY'] #alfa høgde verdien på den tilpassa skredbana
+        print('alfa_Verdi', alfa_verdi)
         alfa_utlop_x = df.loc[alfa_verdi, 'X']
         alfa_utlop_y = df.loc[alfa_verdi, 'Y']
-
-        return (alfa_utlop_x, alfa_utlop_y, (liste_meterverdi, liste_alfa))
+        print(df)
+        print(df.loc[alfa_verdi, 'POLY'])
+        return (alfa_utlop_x, alfa_utlop_y, (liste_meterverdi, liste_alfa), (alfa_verdi, alfa_poly))
         
 def utlop_feature(alfa, beta, skredtype, fgdb, profilnavn, standardavik):
     #alfa_punkt = arcpy.Point(alfa[0], alfa[1])
@@ -227,12 +238,12 @@ def utlop_feature(alfa, beta, skredtype, fgdb, profilnavn, standardavik):
     #features = [fc_alfa, fc_beta, fc_sigma1, fc_sigma2]
     
     
-    data = fgdb + "\\" + fc
-    aprx = arcpy.mp.ArcGISProject("CURRENT")
-    aprxMap = aprx.listMaps(aprx.activeMap.name)[0] 
-    aprxMap.addDataFromPath(data)
+    #data = fgdb + "\\" + fc
+    #aprx = arcpy.mp.ArcGISProject("CURRENT")
+    #aprxMap = aprx.listMaps(aprx.activeMap.name)[0] 
+    #aprxMap.addDataFromPath(data)
 
-    arcpy.ApplySymbologyFromLayer_management(data, "S:\\Oppdrag\\Leikanger\\8454_SKRED\\GIS\\Toolbox\\alfabetapunkt.lyrx")
+    #arcpy.ApplySymbologyFromLayer_management(data, "S:\\Oppdrag\\Leikanger\\8454_SKRED\\GIS\\Toolbox\\alfabetapunkt.lyrx")
 
 def plot_alfa(polydf, beta, alfa):
     arcpy.AddMessage(str(alfa))
@@ -241,7 +252,7 @@ def plot_alfa(polydf, beta, alfa):
     ax.plot(polydf['M'], polydf['POLY']) #Høgdeprofilet
     ax.scatter(beta[5], beta[6], color='r', linewidth='1', label='Punkt med 10 grader helling') # 10 graders punkter
     ax.plot([polydf['M'][0], beta[5]], [polydf['POLY'][0], beta[6]]) #Beta 
-    ax.plot(alfa[0], alfa[1])
+    ax.plot([0, alfa[0]], [polydf['POLY'][0], alfa[1]]) #Må plotte til skjæeringspunkt
     #ax.plot(*LineString(intersection).xy, color='red')
     #ax.plot(df['M'], p(df['M'])) #Plotter regresjonslinje ax2 + bx + c
     #ax.legend()
@@ -266,36 +277,43 @@ def plot_alfa(polydf, beta, alfa):
     return ax
 
 #Setter workspace
-fgdb = arcpy.GetParameterAsText(3)
+#fgdb = arcpy.GetParameterAsText(3)
+fgdb = "C:/Users/jan.aalbu/Documents/ArcGIS/Projects/Alfabeta/Alfabeta.gdb"
 arcpy.env.workspace = fgdb
 
 #Inputdata til beregning
-inputfc_profil = arcpy.GetParameterAsText(0)
+#inputfc_profil = arcpy.GetParameterAsText(0)
+inputfc_profil = 'Terrengprofil_Profil_Lines'
 desc = arcpy.Describe(inputfc_profil)
 profilnavn = desc.name
-input_skredtype = arcpy.GetParameterAsText(2)
+input_skredtype = 'sno'
 outputfc1 = 'punkter'
-insurface = arcpy.GetParameterAsText(1)
-plotter = arcpy.GetParameter(4)
-standardavik = arcpy.GetParameter(5)
+insurface = 'C:/Users/jan.aalbu/Documents/ArcGIS/Projects/Heilevang/Data/DTM Polygon/dtm/NDH Askvoll 5pkt 2018-dtm.tif'
+plotter = True
+standardavik = False
 
 skredprofil = profil(inputfc_profil, insurface)
 skredbane, p = poly_skredbane(skredprofil)
 beta = betapunkt(skredbane, input_skredtype)
-alfa = alfa_vinkel(beta[2])
-utlop = skredutlop(skredbane, (alfa[4], alfa[5], alfa[6]), p, standardavik)
+alfa = alfa_vinkel(beta[2]) #Henter ned liste med alfavinkler basert på input betavinkel (beta[2]) henter ned betavinkel i grader (sjå funksjonen)
+utlop = skredutlop(skredbane, (alfa[4], alfa[5], alfa[6]), p, standardavik) #utløpet 
 betapunkt = (beta[3], beta[4])
-
+print(utlop[0], utlop[1], utlop[2], utlop[3])
 utlop_feature(utlop, betapunkt, input_skredtype, fgdb, profilnavn, standardavik)
 if standardavik == True:
     alfagraf = utlop[4]
 elif standardavik == False:
-    alfagraf = utlop[2]
+    print(utlop[3])
+    alfagraf = utlop[3]
 
     
 if plotter == True:
     plot_alfa(skredbane, beta, alfagraf)
     plt.show()
+
+arcpy.management.Delete("C:/Users/jan.aalbu/Documents/ArcGIS/Projects/Alfabeta/Alfabeta.gdb/punkter")
+arcpy.management.Delete("C:/Users/jan.aalbu/Documents/ArcGIS/Projects/Alfabeta/Alfabeta.gdb/Terrengprofil_Profil_Lines_alfabeta_sno")
+#arcpy.DeleteFeatures_management("C:/Users/jan.aalbu/Documents/ArcGIS/Projects/Alfabeta/Alfabeta.gdb/punkter")
 
     
 #fig, ax = plt.subplots(figsize=(15,10))
