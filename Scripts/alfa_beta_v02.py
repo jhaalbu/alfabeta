@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 import math
 import matplotlib.pyplot as plt
+import matplotlib.ticker as ticker
 
 
 def profil(inputfc, terreng, outputfc='punkter'):
@@ -221,7 +222,7 @@ def utlop_feature(alfa, beta, skredtype, fgdb, profilnavn, standardavik):
 
     fc = profilnavn + '_alfabeta_'+skredtype
     arcpy.CreateFeatureclass_management(fgdb, fc, "Point", "", "", "", 25833)
-    arcpy.AddField_management(fc, 'NAVN', "TEXT")
+    arcpy.AddField_management(fc, 'Value', 'NAVN', "TEXT")
 
     if standardavik == True:
         with arcpy.da.InsertCursor(fc, ["NAVN", "SHAPE@"]) as cursor:
@@ -232,16 +233,17 @@ def utlop_feature(alfa, beta, skredtype, fgdb, profilnavn, standardavik):
 
     elif standardavik == False:
          with arcpy.da.InsertCursor(fc, ["NAVN", "SHAPE@"]) as cursor:
-             cursor.insertRow(('Alfa', (alfa[0], alfa[1])))
-             cursor.insertRow(('Beta', (beta[0], beta[1])))
+             cursor.insertRow((0, 'Start', (alfa[0], alfa[1])))
+             cursor.insertRow((1, 'Alfa', (alfa[0], alfa[1])))
+             cursor.insertRow((2, 'Beta', (beta[0], beta[1])))
                              
-    #features = [fc_alfa, fc_beta, fc_sigma1, fc_sigma2]
+    features = [fc_alfa, fc_beta, fc_sigma1, fc_sigma2]
     
     
-    #data = fgdb + "\\" + fc
-    #aprx = arcpy.mp.ArcGISProject("CURRENT")
-    #aprxMap = aprx.listMaps(aprx.activeMap.name)[0] 
-    #aprxMap.addDataFromPath(data)
+    data = fgdb + "\\" + fc
+    aprx = arcpy.mp.ArcGISProject("CURRENT")
+    aprxMap = aprx.listMaps(aprx.activeMap.name)[0] 
+    aprxMap.addDataFromPath(data)
 
     #arcpy.ApplySymbologyFromLayer_management(data, "S:\\Oppdrag\\Leikanger\\8454_SKRED\\GIS\\Toolbox\\alfabetapunkt.lyrx")
 
@@ -253,6 +255,9 @@ def plot_alfa(polydf, beta, alfa):
     ax.scatter(beta[5], beta[6], color='r', linewidth='1', label='Punkt med 10 grader helling') # 10 graders punkter
     ax.plot([polydf['M'][0], beta[5]], [polydf['POLY'][0], beta[6]]) #Beta 
     ax.plot([0, alfa[0]], [polydf['POLY'][0], alfa[1]]) #Må plotte til skjæeringspunkt
+    loc = ticker.MultipleLocator(base=100.0)
+    ax.xaxis.set_major_locator(loc)
+    ax.axis('equal')
     #ax.plot(*LineString(intersection).xy, color='red')
     #ax.plot(df['M'], p(df['M'])) #Plotter regresjonslinje ax2 + bx + c
     #ax.legend()
@@ -292,6 +297,9 @@ insurface = 'C:/Users/jan.aalbu/Documents/ArcGIS/Projects/Heilevang/Data/DTM Pol
 plotter = True
 standardavik = False
 
+arcpy.management.Delete("C:/Users/jan.aalbu/Documents/ArcGIS/Projects/Alfabeta/Alfabeta.gdb/punkter")
+arcpy.management.Delete("C:/Users/jan.aalbu/Documents/ArcGIS/Projects/Alfabeta/Alfabeta.gdb/Terrengprofil_Profil_Lines_alfabeta_sno")
+
 skredprofil = profil(inputfc_profil, insurface)
 skredbane, p = poly_skredbane(skredprofil)
 beta = betapunkt(skredbane, input_skredtype)
@@ -312,7 +320,7 @@ if plotter == True:
     plt.show()
 
 arcpy.management.Delete("C:/Users/jan.aalbu/Documents/ArcGIS/Projects/Alfabeta/Alfabeta.gdb/punkter")
-arcpy.management.Delete("C:/Users/jan.aalbu/Documents/ArcGIS/Projects/Alfabeta/Alfabeta.gdb/Terrengprofil_Profil_Lines_alfabeta_sno")
+#arcpy.management.Delete("C:/Users/jan.aalbu/Documents/ArcGIS/Projects/Alfabeta/Alfabeta.gdb/Terrengprofil_Profil_Lines_alfabeta_sno")
 #arcpy.DeleteFeatures_management("C:/Users/jan.aalbu/Documents/ArcGIS/Projects/Alfabeta/Alfabeta.gdb/punkter")
 
     
